@@ -2,6 +2,8 @@
 
 A market opportunity analysis of Spanish exports to Poland (2017-2024), built with R, DuckDB (SQL) and Quarto.
 
+**[Read the full report](https://hugurry.github.io/spain-poland-export-opportunity/report/report.html)**
+
 ## Business question
 
 In which product categories is Spain gaining or losing ground in the Polish import market, and where should Spanish exporters focus?
