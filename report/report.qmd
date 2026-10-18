@@ -1,0 +1,197 @@
+---
+title: "Where Can Spanish Exporters Grow in Poland?"
+subtitle: "A market opportunity analysis using CEPII BACI trade data, 2017-2024"
+author: "Hugo Gutierrez Peralta"
+date: 2026-10-18
+date-format: long
+format:
+  html:
+    theme: flatly
+    toc: true
+    toc-title: "Contents"
+    embed-resources: true
+    smooth-scroll: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+# Setup: libraries and the processed data created by the scripts in /R
+library(tidyverse)
+library(knitr)
+
+hs2_year    <- read_csv("../data/processed/hs2_year.csv", show_col_types = FALSE)
+opportunity <- read_csv("../data/processed/opportunity_hs2.csv", show_col_types = FALSE)
+
+# Names of the HS2 chapters that appear in the tables
+hs2_names <- tribble(
+  ~hs2, ~chapter,
+  87, "Vehicles",
+  85, "Electrical equipment",
+  84, "Machinery",
+  72, "Iron and steel",
+  39, "Plastics",
+  38, "Miscellaneous chemicals",
+  30, "Pharmaceuticals",
+  33, "Cosmetics and perfumery",
+  29, "Organic chemicals",
+  61, "Apparel (knitted)",
+  62, "Apparel (woven)",
+  15, "Fats and oils",
+  8,  "Fruit and nuts",
+  7,  "Vegetables",
+  2,  "Meat"
+)
+```
+
+## 1. Business question
+
+Poland is one of the largest import markets in Central Europe. This report asks: **in which product categories is Spain gaining or losing ground in the Polish market, and where should Spanish exporters focus?**
+
+## 2. Data and method
+
+- **Source:** CEPII BACI (HS17 revision, version 202601), which records bilateral trade flows at product level. Values are in **current US dollars**, so they include price inflation and exchange-rate effects.
+- **Scope:** Polish imports from all countries, 2017-2024. Products are analysed by HS2 chapter (broad product groups), with a deeper look at selected chapters.
+- **Indicators:** market size (Polish imports in 2024), market growth (compound annual growth rate, CAGR, 2019-2024), and Spain's market share and its change in percentage points (pp). 2019 is the base year because it is the last year before COVID-19.
+- **Value gap:** the change in Spain's share multiplied by the 2024 market size. It approximates how much more or less Spain would sell if it had kept its 2019 share. It is an illustration, not an accounting loss.
+- **Exclusions:** fuels (HS 27), a commodity market where Spain barely participates, and arms (HS 93), which reflects state defence purchases. Only chapters with more than USD 1 bn of Polish imports in 2024 are analysed.
+
+## 3. Key findings
+
+### Spain's exports grew, but its market share did not
+
+```{r}
+# Totals by year, summing all HS2 chapters
+totals <- hs2_year |>
+  group_by(year) |>
+  summarise(
+    poland_imports = sum(poland_imports_kusd) / 1e6,
+    from_spain     = sum(from_spain_kusd) / 1e6,
+    .groups = "drop"
+  ) |>
+  mutate(share = 100 * from_spain / poland_imports)
+```
+
+Spanish exports to Poland grew by 64% between 2017 and 2024, from USD 5.9 bn to USD 9.8 bn. However, Spain's share of Polish imports stayed between 2.2% and 2.5% throughout the period. In other words, growth came from the market, not from gains in competitiveness.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 4.5
+ggplot(totals, aes(x = year, y = from_spain)) +
+  geom_col(fill = "#e76f51", width = 0.7) +
+  geom_text(aes(label = paste0(round(share, 2), "%")), vjust = -0.6, size = 3.5) +
+  scale_x_continuous(breaks = 2017:2024) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(
+    title = "Spain's exports to Poland, 2017-2024",
+    subtitle = "Bars: exports (USD bn). Labels: Spain's share of Polish imports",
+    x = NULL, y = "USD bn",
+    caption = "Source: CEPII BACI (HS17, v202601), current USD."
+  ) +
+  theme_minimal()
+```
+
+### Where Spain is gaining and losing ground
+
+```{r}
+knitr::include_graphics("../output/figures/opportunity_map.png")
+```
+
+Each bubble is an HS2 chapter. Teal bubbles are chapters where Spain gained share between 2019 and 2024, and orange ones where it lost share. The size shows the Polish market in 2024.
+
+- **Gaining:** pharmaceuticals, cosmetics, apparel and meat. Spain's share rises in markets that are also growing quickly.
+- **Losing:** vehicles, fruit and vegetables. Vehicles matter most because of the size of the market.
+- **Stagnant giants:** machinery and electrical equipment are worth almost USD 100 bn of Polish imports combined, and Spain's share stays around 1.2-1.3%.
+
+### The largest gains and losses in USD terms
+
+A change in share does not weigh the same everywhere: one point in a USD 43 bn market is worth far more than one point in a USD 2 bn market. The tables below convert each share change into an approximate value gap (USD million).
+
+```{r}
+gap <- opportunity |>
+  filter(!hs2 %in% c(27, 93)) |>
+  mutate(value_gap_usd_m = share_change_pp / 100 * market_2024_usd_bn * 1000) |>
+  left_join(hs2_names, by = "hs2")
+
+# Helper to format a table of chapters
+fmt <- function(d) {
+  d |>
+    transmute(
+      Chapter = paste0(coalesce(chapter, "Other"), " (HS ", hs2, ")"),
+      `Polish imports 2024 (USD bn)` = round(market_2024_usd_bn, 1),
+      `Spain share 2019 (%)` = round(spain_share_2019, 1),
+      `Spain share 2024 (%)` = round(spain_share_2024, 1),
+      `Change (pp)` = round(share_change_pp, 1),
+      `Value gap (USD m)` = round(value_gap_usd_m)
+    )
+}
+```
+
+**Largest losses**
+
+```{r}
+gap |> arrange(value_gap_usd_m) |> head(6) |> fmt() |> kable()
+```
+
+**Largest gains**
+
+```{r}
+gap |> arrange(desc(value_gap_usd_m)) |> head(6) |> fmt() |> kable()
+```
+
+## 4. Deep dive: passenger cars
+
+Vehicles (HS 87) are Spain's largest export chapter to Poland and the biggest source of lost share (about USD 0.5 bn). Breaking the chapter down into HS4 headings shows that the problem is concentrated in **passenger cars (HS 8703)**: Spain's share fell from 6.9% in 2019 to 4.6% in 2024, worth roughly USD 0.45 bn. Parts and accessories (HS 8708), the second-largest heading with USD 12.9 bn of Polish imports, held up well (4.6% to 4.5%). Armoured fighting vehicles (HS 8710) were excluded from the commercial reading, as they reflect defence spending.
+
+### Spain sold more cars, but the market grew much faster
+
+```{r}
+knitr::include_graphics("../output/figures/cars_index.png")
+```
+
+Spanish car exports to Poland rose from USD 0.79 bn in 2019 to USD 0.90 bn in 2024 (+14%), while Polish car imports from all origins rose from USD 11.5 bn to USD 19.7 bn (+71%). The share did not decline gradually: there was a step down in 2020 (6.9% to 5.6%), when Spanish sales fell by a third and the market by 18%, followed by a slower decline until 2024. The data show *when* and *how much*, but not *why* the step happened in 2020, so we leave that as an open question.
+
+### Who gained the share Spain lost?
+
+The table shows the main exporters of passenger cars to Poland. Spain is not alone: other Western European suppliers (the United Kingdom, France, Belgium) also lost share, while Germany, Slovakia and three non-European origins (Brazil, China, the United States) gained.
+
+```{r}
+read_csv("../data/processed/cars_competitors.csv", show_col_types = FALSE) |>
+  mutate(country_name = if_else(str_detect(country_name, "rkiye"), "Türkiye", country_name)) |>
+  head(10) |>
+  transmute(
+    Exporter = country_name,
+    `Exports to Poland 2024 (USD bn)` = round(imports_2024_usd_bn, 2),
+    `Share 2019 (%)` = round(share_pct_2019, 1),
+    `Share 2024 (%)` = round(share_pct_2024, 1),
+    `Change (pp)` = round(share_change_pp, 1)
+  ) |>
+  kable()
+```
+
+Note that BACI records the **exporting country**, not the car brand: a car from a German brand built in Spain counts as Spanish.
+
+## 5. Recommendations
+
+The data point to four priorities. They are hypotheses to test with company-level information (prices, margins, capacity), not conclusions about causes.
+
+1. **Build on momentum in pharmaceuticals, cosmetics and apparel.** Spain is gaining share in markets that grow at 10-14% a year. Pharmaceuticals add the largest value gap (about USD 140 m) and show the strongest combination of market size, growth and share gain.
+2. **Look for a share gain in the two largest markets.** Machinery and electrical equipment together exceed USD 98 bn of Polish imports, and Spain holds around 1.3%. As a rough order of magnitude, each additional 0.1 pp of share in electrical equipment is worth about USD 50 m a year. For comparison, the share gain in cosmetics over 2019-2024 is worth about USD 90 m.
+3. **Investigate the passenger-car decline before reacting to it.** Spain lost about USD 0.45 bn of potential sales in cars, but other Western European suppliers lost share too, so the cause may be broader than Spain alone. The next step is to understand which models and which producers are behind the 2020 step-down.
+4. **Defend the strong food positions.** Spain still holds 23% of vegetables, 19% of fruit and 16% of meat imports in Poland. Vegetables and fruit have lost share, while meat has gained. These are small markets, so the priority is to protect existing positions.
+
+## 6. Limitations
+
+- **Current USD values.** Growth rates include inflation and exchange-rate effects, so they overstate real growth. Spain's share is less affected, because it compares two flows measured in the same currency.
+- **Value gap is an illustration.** It assumes Spain could have kept its 2019 share, which ignores capacity, prices and competition. It indicates scale, not a loss.
+- **Share is not causality.** The analysis describes what happened, not why. For example, we cannot explain the step-down in car share in 2020.
+- **HS2 is a broad level.** A chapter can hide very different products. We went down to HS4 only for vehicles; other chapters may hide similar patterns.
+- **Country of export, not brand.** BACI records the exporting country, so company or brand strategy is not visible.
+- **Latest year may be revised.** The 2024 data come from the January 2026 release, and BACI figures for recent years can change in later versions.
+- **Analytical choices.** The base year (2019), the USD 1 bn threshold and the exclusion of fuels and arms are judgement calls. Other choices would change some rankings.
+
+## 7. Data and reproducibility
+
+Raw data: CEPII BACI, HS17 revision, version 202601 (http://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37). The analysis was done in R with DuckDB (SQL), the tidyverse and Quarto. The code is available in the project repository.
