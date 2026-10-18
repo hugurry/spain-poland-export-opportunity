@@ -38,13 +38,13 @@ The summary tables created by the scripts are included in `data/processed/`, so 
 
 1. Open `spain-poland-export-opportunity.Rproj` in RStudio.
 2. Install the packages: `tidyverse`, `DBI`, `duckdb`, `ggrepel`, `knitr` and `quarto`.
-3. Run the scripts in `R/` in numerical order (`01` to `08`).
+3. Run the scripts in `R/` in numerical order (`01` to `09`).
 4. Render `report/report.qmd`.
 
 ## Project structure
 
 ```
-R/                 analysis scripts (01-08)
+R/                 analysis scripts (01-09)
 data/processed/    summary tables created by the scripts
 output/figures/    charts used in the report
 report/            Quarto report (qmd and html)
